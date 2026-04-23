@@ -39,16 +39,16 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
- - name: Start backend to verify it boots
-  shell: powershell
-  run: |
-    $proc = Start-Process npm -ArgumentList "start" -PassThru
-    Start-Sleep -Seconds 10
-    if ($null -eq (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)) {
-      Write-Error "Le backend s'est arrêté immédiatement."
-      exit 1
-    }
-    Stop-Process -Id $proc.Id -Force
+      - name: Start backend to verify it boots
+        shell: powershell
+        run: |
+          $proc = Start-Process npm -ArgumentList "start" -PassThru
+          Start-Sleep -Seconds 10
+          if ($null -eq (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)) {
+            Write-Error "Le backend s'est arrêté immédiatement."
+            exit 1
+          }
+          Stop-Process -Id $proc.Id -Force
 
   build-frontend:
     name: Build Frontend
