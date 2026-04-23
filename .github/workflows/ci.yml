@@ -45,7 +45,7 @@ jobs:
           $proc = Start-Process npm -ArgumentList "start" -PassThru
           Start-Sleep -Seconds 10
           if ($null -eq (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)) {
-            Write-Error "Le backend s'est arrÃªtÃ© immÃ©diatement."
+            Write-Error "Le backend s'est arrêté immédiatement."
             exit 1
           }
           Stop-Process -Id $proc.Id -Force
@@ -72,3 +72,63 @@ jobs:
 
       - name: Build production
         run: npm run build
+
+  lint-check:
+    name: Lint Check
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Check project structure
+        shell: powershell
+        run: |
+          if (!(Test-Path "backend/package.json")) {
+            Write-Error "backend/package.json manquant"
+            exit 1
+          }
+
+          if (!(Test-Path "frontend/package.json")) {
+            Write-Error "frontend/package.json manquant"
+            exit 1
+          }
+
+          if (!(Test-Path ".gitignore")) {
+            Write-Error ".gitignore manquant"
+            exit 1
+          }
+
+          if (!(Test-Path "scripts")) {
+            Write-Error "dossier scripts manquant"
+            exit 1
+          }
+
+      - name: Fail if .env exists in repo
+        shell: powershell
+        run: |
+          $envFiles = Get-ChildItem -Path . -Recurse -Force -File | Where-Object { $_.Name -eq ".env" }
+          if ($envFiles) {
+            Write-Error "Fichier .env trouvé dans le dépôt"
+            $envFiles | ForEach-Object { Write-Output $_.FullName }
+            exit 1
+          }
+
+  docker-build:
+    name: Docker Build Check
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build Docker images
+        shell: powershell
+        run: docker compose build
+
+      - name: Verify images exist
+        shell: powershell
+        run: |
+          docker image inspect test-cesi-backend | Out-Null
+          docker image inspect test-cesi-frontend | Out-Null
+          Write-Host "Docker images found"
