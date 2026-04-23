@@ -1,0 +1,80 @@
+name: CD Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Docker images
+    runs-on: [self-hosted, windows, x64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build Docker images
+        shell: powershell
+        run: docker compose build
+
+      - name: Verify images exist
+        shell: powershell
+        run: |
+          docker image inspect test-cesi-backend | Out-Null
+          docker image inspect test-cesi-frontend | Out-Null
+          Write-Host "Docker images found"
+
+  deploy:
+    name: Deploy application
+    runs-on: [self-hosted, windows, x64]
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Stop previous version if present
+        shell: powershell
+        run: |
+          docker compose down
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Nothing was running, continuing"
+            exit 0
+          }
+
+      - name: Start new version
+        shell: powershell
+        run: docker compose up -d
+
+      - name: Wait for startup
+        shell: powershell
+        run: Start-Sleep -Seconds 15
+
+      - name: Show services status
+        shell: powershell
+        run: docker compose ps
+
+      - name: Run Prisma migrations
+        shell: powershell
+        run: docker compose exec -T backend npx prisma migrate deploy
+
+      - name: Seed database
+        shell: powershell
+        run: docker compose exec -T backend npm run seed
+
+      - name: Check frontend responds
+        shell: powershell
+        run: |
+          Invoke-WebRequest -Uri "http://localhost:8080" -UseBasicParsing | Out-Null
+          Write-Host "Frontend OK"
+
+      - name: Check backend responds
+        shell: powershell
+        run: |
+          Invoke-WebRequest -Uri "http://localhost:3000/api/classes" -UseBasicParsing | Out-Null
+          Write-Host "Backend OK"

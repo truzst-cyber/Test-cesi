@@ -1,0 +1,18 @@
+  docker-build:
+    name: Docker Build Check
+    runs-on: [self-hosted, windows, x64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build Docker images
+        shell: powershell
+        run: docker compose build
+
+      - name: Verify images exist
+        shell: powershell
+        run: |
+          docker image inspect test-cesi-backend | Out-Null
+          docker image inspect test-cesi-frontend | Out-Null
+          Write-Host "Docker images found"
